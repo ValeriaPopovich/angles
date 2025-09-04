@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Виды углов</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root{
+      --bg:#fffaf6; --card:#ffffff; --ink:#5a2a2a;
+      --mint:#b8f2e6; --peach:#ffd6a5; --rose:#ffcad4; --sky:#cde7ff; --lime:#d3f8b6;
+      --ok:#2db47a; --bad:#ff6b6b; --muted:#f2eee9;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; background:linear-gradient(135deg,var(--bg),#fffefe 35%, #fff7f0); color:var(--ink);
+      font-family:'DM Sans',system-ui,Segoe UI,Roboto; display:flex; align-items:flex-start; justify-content:center; padding:clamp(10px,3vw,28px)}
+    .wrap{width:min(1100px,100%); display:grid; gap:16px}
+
+    header{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap}
+    h1{margin:0; font-size:clamp(20px,3.4vw,36px)}
+    .badge{background:var(--sky); padding:6px 10px; border-radius:999px; font-weight:700; font-size:12px}
+
+    .card{background:var(--card); border-radius:22px; box-shadow:0 10px 30px rgba(0,0,0,.08); padding:clamp(14px,2.4vw,22px)}
+    .toolbar{display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:12px}
+    @media (max-width:720px){.toolbar{grid-template-columns:1fr;}}
+    .progress{height:10px; background:#f0f0f0; border-radius:999px; overflow:hidden}
+    .progress>i{display:block; height:100%; width:0; background:linear-gradient(90deg,var(--mint),var(--peach)); transition:width .4s}
+    .counter{font-weight:700}
+    .btn{border:0; padding:12px 14px; border-radius:14px; font-weight:800; cursor:pointer}
+    .btn.peach{background:var(--peach)}
+    .btn.mint{background:var(--mint)}
+    .btn.rose{background:var(--rose)}
+    .btn.sky{background:var(--sky)}
+
+    .pins{width:100%; column-count:1; column-gap:14px}
+    @media (min-width:680px){.pins{column-count:2}}
+    @media (min-width:1024px){.pins{column-count:3}}
+    .pin{display:inline-block; width:100%; margin:0 0 14px; background:#fff; border-radius:18px; box-shadow:0 8px 24px rgba(0,0,0,.06); overflow:hidden; break-inside:avoid; -webkit-column-break-inside:avoid; page-break-inside:avoid}
+    .pinHead{display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:linear-gradient(145deg,#fff,#fff7fb)}
+    .pinNum{font-weight:800; font-size:14px}
+    .tag{background:var(--rose); padding:4px 8px; border-radius:999px; font-weight:700; font-size:12px}
+    .pinBody{padding:12px}
+    .choices{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px}
+    .choice{border:0; padding:10px 12px; border-radius:14px; background:var(--sky); font-weight:700; cursor:pointer; transition:.2s transform}
+    .choice:hover{transform:translateY(-2px)}
+    .choice.selected{outline:3px solid var(--mint)}
+    .pin.ok{box-shadow:0 0 0 3px rgba(45,180,122,.5), 0 8px 24px rgba(0,0,0,.06)}
+    .pin.bad{box-shadow:0 0 0 3px rgba(255,107,107,.5), 0 8px 24px rgba(0,0,0,.06)}
+
+    canvas{width:100%; height:auto; display:block; background:#fff; border-radius:14px; box-shadow:inset 0 0 0 2px #ffe4ef}
+
+    .hint{background:#fff7e6; border-left:4px solid var(--peach); padding:10px; border-radius:10px; font-size:14px}
+
+    .result{display:none}
+    .score{font-size:clamp(18px,2.6vw,24px); font-weight:800; margin:0 0 8px}
+
+    .subscribe{margin-top:10px; text-align:center}
+    .subscribe a{display:inline-block; background:var(--rose); color:var(--ink); padding:10px 16px; border-radius:999px; font-weight:700; text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Виды углов</h1>
+      <span class="badge" id="badge">@lera_easy_math</span>
+    </header>
+
+    <section class="card toolbar">
+      <div class="progress"><i id="bar"></i></div>
+      <div class="counter" id="counter">Ответы: 0/0</div>
+      <button class="btn peach" id="finish">Проверить тест</button>
+      <button class="btn rose" id="subscribe"><a href="https://t.me/yourchannel" target="_blank" style="color:inherit; text-decoration:none">Подписаться на мой канал</a></button>
+      <button class="btn mint" id="restart" style="display:none">Пройти ещё раз</button>
+    </section>
+
+    <section class="hint card"><b>Памятка:</b> острый — меньше 90°; прямой — ровно 90°; тупой — больше 90°, но меньше 180°; развернутый — <b>ровно 180°</b>.</section>
+
+    <section class="pins" id="pins"></section>
+
+    <section class="card result" id="result">
+      <p class="score" id="scoreText"></p>
+      <div id="explain"></div>
+    </section>
+  </div>
+
+<script>
+const TYPES = ['острый','прямой','тупой','развернутый'];
+const REMOVE_BY_NUMBER = [6,7,9];
+const state = { total:0, bank:[], answers:[], finished:false };
+
+function rand(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+function choice(a){return a[Math.floor(Math.random()*a.length)]}
+
+function randomAngleByType(type, diff){
+  if(type==='прямой') return 90;
+  if(type==='развернутый') return 180;
+  if(type==='острый'){
+    if(diff===1) return rand(30,70);
+    if(diff===2) return rand(50,85);
+    return rand(83,89);
+  }
+  if(diff===1) return rand(110,150);
+  if(diff===2) return rand(100,140);
+  return Math.random()<.5 ? rand(91,97) : rand(173,179);
+}
+
+function typeOfAngle(deg){
+  if(deg===90) return 'прямой';
+  if(deg===180) return 'развернутый';
+  if(deg>0 && deg<90) return 'острый';
+  if(deg>90 && deg<180) return 'тупой';
+  return '—';
+}
+
+function buildBank(){
+  const raw=[]; const TOTAL=10;
+  for(let i=0;i<TOTAL;i++){
+    const diff = 1 + Math.floor(i/(TOTAL/3));
+    const t = choice(TYPES);
+    const deg = randomAngleByType(t, diff);
+    raw.push({deg, type:t});
+  }
+  const filtered = raw.filter((_,i)=>!REMOVE_BY_NUMBER.includes(i+1));
+  return filtered;
+}
+
+function drawAngleOn(ctx, W, H, deg){
+  ctx.clearRect(0,0,W,H);
+  const cx=W/2, cy=H/2, len=Math.min(W,H)/2-20;
+  const a1=0, a2=deg*Math.PI/180;
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#ffe8f3'; ctx.lineWidth=1;
+  for(let x=40;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=40;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  ctx.lineCap='round';
+  ctx.strokeStyle='#ff7aa2'; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+len,cy); ctx.stroke();
+  ctx.strokeStyle='#87d7c7'; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+len*Math.cos(a2), cy+len*Math.sin(a2)); ctx.stroke();
+  ctx.strokeStyle='#ffd6a5'; ctx.lineWidth=5; ctx.beginPath(); ctx.arc(cx,cy, Math.min(90, len*.6), a1, a2, false); ctx.stroke();
+  ctx.fillStyle='#5a2a2a'; ctx.font='700 20px DM Sans'; ctx.textAlign='center'; ctx.fillText(`${deg}°`, cx, cy-10);
+}
+
+const pinsEl = document.getElementById('pins');
+const bar = document.getElementById('bar');
+const counter = document.getElementById('counter');
+const badge = document.getElementById('badge');
+const resultBox = document.getElementById('result');
+const scoreText = document.getElementById('scoreText');
+const explain = document.getElementById('explain');
+
+function renderPins(){
+  pinsEl.innerHTML='';
+  state.bank.forEach((q,idx)=>{
+    const pin = document.createElement('article'); pin.className='pin';
+    pin.innerHTML = `
+      <div class="pinHead">
+        <span class="pinNum">Вопрос ${idx+1}</span>
+        <span class="tag">вид угла</span>
+      </div>
+      <div class="pinBody">
+        <canvas width="480" height="260"></canvas>
+        <div class="choices">
+          ${TYPES.map(t=>`<button class="choice" data-v="${t}">${t}</button>`).join('')}
+        </div>
+      </div>`;
+    pinsEl.appendChild(pin);
+    const c = pin.querySelector('canvas'); const ctx = c.getContext('2d');
+    drawAngleOn(ctx, c.width, c.height, q.deg);
+    const saved = state.answers[idx];
+    const buttons = [...pin.querySelectorAll('.choice')];
+    if(saved){ const b = buttons.find(x=>x.dataset.v===saved); if(b) b.classList.add('selected'); }
+    buttons.forEach(b=> b.addEventListener('click',()=>{
+      buttons.forEach(x=>x.classList.remove('selected'));
+      b.classList.add('selected');
+      state.answers[idx] = b.dataset.v;
+      updateProgress();
+    }));
+  });
+}
+
+function updateProgress(){
+  const answered = state.answers.filter(Boolean).length;
+  counter.textContent = `Ответы: ${answered}/${state.total}`;
+  bar.style.width = `${Math.round(answered/state.total*100)}%`;
+}
+
+function finish(){
+  const results = state.bank.map((q,i)=>({
+    your: state.answers[i],
+    right: typeOfAngle(q.deg),
+    deg: q.deg
+  }));
+  const score = results.reduce((s,r)=> s + (r.your===r.right?1:0), 0);
+  [...pinsEl.children].forEach((pin,i)=>{
+    pin.classList.remove('ok','bad');
+    if(results[i].your){ pin.classList.add(results[i].your===results[i].right?'ok':'bad'); }
+  });
+  resultBox.style.display='block';
+  scoreText.textContent = `Результат: ${score}/${state.total}`;
+  explain.innerHTML = results.map((r,i)=>
+    `<div style="background:var(--muted); padding:8px 10px; border-radius:10px; margin:6px 0; display:flex; gap:10px; align-items:center">
+      <b>#${i+1}</b>
+      <span>угол <b>${r.deg}°</b> → верно: <b>${r.right}</b>${r.your?`, твой ответ: ${r.your}`:' (без ответа)'}</span>
+      <span style="margin-left:auto; font-weight:800; color:${r.your===r.right?'var(--ok)':'var(--bad)'}">${r.your===r.right?'✔':'✘'}</span>
+    </div>`).join('');
+  document.getElementById('finish').style.display='none';
+  document.getElementById('restart').style.display='inline-block';
+  state.finished=true;
+}
+
+function restart(){
+  state.bank = buildBank();
+  state.total = state.bank.length;
+  state.answers = Array(state.total).fill(null);
+  badge.textContent = '@lera_easy_math';
+  resultBox.style.display='none'; scoreText.textContent=''; explain.innerHTML='';
+  document.getElementById('finish').style.display='inline-block';
+  document.getElementById('restart').style.display='none';
+  renderPins(); updateProgress();
+}
+
+function init(){
+  restart();
+  document.getElementById('finish').addEventListener('click', finish);
+  document.getElementById('restart').addEventListener('click', restart);
+}
+init();
+</script>
+</body>
+</html>
